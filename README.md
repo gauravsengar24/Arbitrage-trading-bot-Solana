@@ -1,69 +1,101 @@
-# 🚀🚀🚀 Solana Copy Trading Bot (Rust) 🚀🚀🚀 
+# Jupiter Arbitrage Bot (Offchain) — Solana DEX Trading
 
-![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)
-![GitHub last commit](https://img.shields.io/github/last-commit/hodlwarden/solana-copy-trading-bot-rust)
+**Rust-based Jupiter arbitrage bot for Solana.** Discovers and executes profitable swap opportunities via the [Jupiter](https://jupiter.ag) aggregator. Submits transactions through RPC only (no Jito, Helius, or BloxRoute). Supports **continuous quote polling** and optional **Yellowstone gRPC** big-trade monitoring.
 
-**[English](README.md) | [中文](README.zh-CN.md)**
+Useful search terms: *Jupiter arbitrage bot*, *Solana arbitrage*, *Jupiter swap bot*, *DEX arbitrage Rust*, *Solana trading bot*, *Yellowstone gRPC*, *Jupiter API*.
 
-A high-performance copy trading bot for solana dexs built in Rust, designed to automatically mirror trades from selected wallets or traders.
-Achieved `0 block` copy trading already, updating to become first copier.
-
-## Supported Dexs
-
-- Pump.fun/Pump Swap Copy Trading
-- Raydium(AMM/CPMM) Copy Trading
-- Meteora(DBC/DYN/DAMM) Copy Trading
-- Jupiter Copy Trading
-
-##  Copy Trading Example Tx
-Target- https://solscan.io/tx/5As2XB89ZH4VG4Rir88JcJt3ViY1rRCEoEqr2d4bVpWL31fcGFLiR1RfgyqpJGLfX5YTmPEWqmU4vKAatSGcZf2a
-
-Copy - https://solscan.io/tx/2cCJ3VEymoMgmKNC86LDzx3ywP2PeqkyBgwg7ZXiUP2zympQksqhKoeH82FRqTVPv7w62pdGvTt2amHPLt39orkq
-
-Target - https://solscan.io/tx/4SfnqzpMh539696wGLC1doFa1kMUqMt9ssptfCfQVFEv6WcAihZYpuxkuxK1VEgxZE2fmMSKtV8wka8Ce5prdxpQ
-
-Copy - https://solscan.io/tx/291NcWEyLsTvxvcLYC98iEWnCDNeCsebywqeEQopAFHVe1GiT3MMx2nPibedU6VbKJ5h1QTh8HTP3hoiuyjshMMC
+---
 
 ## Features
 
-- 🚀 Real-time trade mirroring from target addresses
-- ⚡ Low-latency execution powered by Rust
-- 🔒 Secure private key management
-- 📊 Configurable trade parameters (slippage, gas fees, etc.)
-- 📈 Multi-wallet support
-- 🔄 Automated token approval
-- 📝 Transaction logging
+- **Dual discovery modes**
+  - **Continuous polling** — Periodically fetches Jupiter quotes across configurable amount ranges and tokens.
+  - **Big-trades monitor** — Subscribes to Yellowstone gRPC for large on-chain flows and reacts with quote simulation.
+- **RPC-only execution** — All transactions sent via your RPC/submit endpoint (no bundled relayer).
+- **Multi-token support** — Configure base tokens (e.g. USDC, SOL) with notional ranges, grid steps, and min-profit thresholds.
+- **Transaction cost awareness** — Estimates fee (compute, priority, tip) and SOL price to filter only profitable trades.
+- **Nonce-based submission** — Uses a durable nonce account for reliable transaction lifecycle.
+
+---
 
 ## Prerequisites
 
-- Rust 1.70 or higher
-- Solana CLI (if interacting with Solana blockchain)
-- Node.js (for optional frontend components)
+- **Rust** (stable, e.g. 1.70+): [rustup](https://rustup.rs)
+- **Solana RPC** — A node or provider (e.g. Helius, QuickNode, Triton) with `submitTransaction` support.
+- **Wallet** — Keypair file for the bot and a funded **nonce account**.
+- **Jupiter API** — Either the public Jupiter API or a self-hosted proxy; configurable in `Config.toml`.
+- **Yellowstone gRPC** (optional) — Only if you enable big-trades monitoring; requires endpoint and auth token.
 
-## Installation
+---
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/hodlwarden/solana-copy-trading-bot-rust.git
-   cd solana-copy-trading-bot-rust
-2. Complete config of .env
-   Simply rename the .env.example to .env and fill all configs.
-   ```bash
-   PRIVATE_KEY= # your wallet priv_key
-   RPC_HTTP=https://solana-rpc.publicnode.com #your yellowstone rpc api-key
-   RPC_WSS=wss://solana-rpc.publicnode.com #your yellowstone wss api-key
-   YELLOWSTONE_GRPC_HTTP=https://solana-yellowstone-grpc.publicnode.com:443 #your yellowstone grpc api-key
-   SLIPPAGE=10
-   JITO_BLOCK_ENGINE_URL=https://ny.mainnet.block-engine.jito.wtf
-   JITO_TIP_VALUE=0.0001
+## Quick Start
 
-4. Install cargo package.
-   ```bash
-   cargo build
-5. Run
-   ```bash
-   cargo run
+1. **Clone and build**
 
-# Contact Me
-If you have any question or collaboration offer, feel free to text me. You're always welcome
-Telegram - [@hodlwarden](https://t.me/hodlwarden)
+   ```bash
+   git clone https://github.com/hodlwarden/solana-arbitrage-bot.git solana-arbitrage-bot && cd solana-arbitrage-bot
+   cargo build --release
+   ```
+
+2. **Configure**
+
+   Copy the included `Config.toml` to a private file (e.g. `settings.toml`) or edit in place. **Do not commit secrets.** Set at least:
+
+   - `signer_keypair_path`, `rpc_endpoint`, `submit_endpoint`
+   - `dex_api` endpoint (Jupiter API or proxy)
+   - `nonce_account_pubkey`, `instruments`, and `[fees]`
+
+   The app loads `settings.toml` first, then falls back to `Config.toml`.
+
+3. **Run**
+
+   ```bash
+   cargo run --release
+   # Or: ./target/release/jupiter_arbitrage_bot_offchain  # if the binary name matches
+   ```
+
+   Set `RUST_LOG=info` (or `debug`) to control log level.
+
+---
+
+## Configuration
+
+Configuration is TOML-based. Example structure (see `Config.toml` in the repo for full reference):
+
+| Section       | Purpose |
+|---------------|---------|
+| `[connection]` | `signer_keypair_path`, `rpc_endpoint`, `submit_endpoint`; optional `geyser_endpoint`, `geyser_auth_token` for Yellowstone. |
+| `[dex_api]`   | Jupiter API `endpoint` and optional `auth_token`. |
+| `[strategy]`  | `instruments` (base tokens with mint, notional range, grid steps, min profit), `nonce_account_pubkey`, `default_quote_mint`, `polling_enabled` / `poll_interval_ms`, `geyser_watch_enabled`, `execution_enabled`. |
+| `[fees]`      | `compute_unit_limit`, `priority_fee_lamports`, `relay_tip_sol`; optional `sol_price_usd` fallback. |
+
+Legacy key names (e.g. `[credential]`, `wallet_path`, `base_tokens`, `live_trading`) are still accepted via aliases.
+
+---
+
+## Project Layout
+
+| Path        | Description |
+|------------|-------------|
+| `src/app/` | Configuration and runtime settings (node, swap API, strategy, fees). |
+| `src/chain/` | Chain data and constants (program maps, token info, fee constants). |
+| `src/engine/` | Arbitrage engine: Jupiter integration, discovery (polling + big-trades), execution, runtime (nonce, blockhash, SOL price, fee cost). |
+
+---
+
+## How It Works
+
+1. **Discovery**
+   - **Polling:** On a timer, for each configured base token, the bot sweeps a notional range (e.g. 10–600 USDC) in a grid, requests Jupiter quotes (e.g. base → USDC/SOL), and keeps opportunities above the minimum profit after fees.
+   - **Big-trades:** If enabled, a Yellowstone gRPC subscription filters transactions touching configured token mints; large flows trigger quote simulation and optional execution.
+2. **Execution**
+   - Builds swap instructions via the Jupiter API, advances the nonce, then submits the transaction through the configured RPC/submit endpoint with the requested compute units and priority fee.
+
+---
+
+## Contact
+
+Telegram: [t.me/hodlwarden](https://t.me/hodlwarden)
+
+---
+

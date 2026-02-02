@@ -1,3 +1,62 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+/bin/main
+/bin/nonce
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs.txt
+big_trades.txt
+*.log
+
+# Sensitive files
+id.json
+*.key
+*.pem
+*.p12
+
+# Config files with sensitive data
+Config.toml
+Config SOL.toml
+Config USDC.toml
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Environment files
 .env
-target
-blacklist.txt
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Patches (if you want to keep them local)
+# patches/
+
+# Compiled binaries
+jupiter-swap-api
+*.bin
+
+# Test files
+test_*.txt
+*.test
