@@ -1,8 +1,8 @@
-# Jupiter Arbitrage Bot (Offchain) — Solana DEX Trading
+# Solana Arbitrage Bot
 
-**Rust-based Jupiter arbitrage bot for Solana.** Discovers and executes profitable swap opportunities via the [Jupiter](https://jupiter.ag) aggregator. Submits transactions through RPC only (no Jito, Helius, or BloxRoute). Supports **continuous quote polling** and optional **Yellowstone gRPC** big-trade monitoring.
+**A Solana arbitrage bot** built in Rust. Discovers and executes profitable DEX swap opportunities on Solana via the [Jupiter](https://jupiter.ag) aggregator. RPC-only execution (no Jito/BloxRoute). Supports **continuous quote polling** and optional **Yellowstone gRPC** big-trade monitoring.
 
-Useful search terms: *Jupiter arbitrage bot*, *Solana arbitrage*, *Jupiter swap bot*, *DEX arbitrage Rust*, *Solana trading bot*, *Yellowstone gRPC*, *Jupiter API*.
+*Keywords: solana arbitrage bot, Solana arbitrage, Jupiter arbitrage bot, DEX arbitrage Rust, Solana trading bot, Yellowstone gRPC, Jupiter API.*
 
 ---
 
@@ -96,6 +96,3 @@ Legacy key names (e.g. `[credential]`, `wallet_path`, `base_tokens`, `live_tradi
 ## Contact
 
 Telegram: [t.me/hodlwarden](https://t.me/hodlwarden)
-
----
-
