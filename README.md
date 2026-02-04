@@ -95,4 +95,4 @@ Legacy key names (e.g. `[credential]`, `wallet_path`, `base_tokens`, `live_tradi
 
 ## Contact
 
-Telegram: [t.me/hodlwarden](https://t.me/hodlwarden)
+Telegram: [Hodlwarden](https://t.me/hodlwarden)
