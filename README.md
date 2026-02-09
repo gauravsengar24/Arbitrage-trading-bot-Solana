@@ -4,6 +4,21 @@
 
 *Keywords: solana arbitrage bot, Solana arbitrage, Jupiter arbitrage bot, DEX arbitrage Rust, Solana trading bot, Yellowstone gRPC, Jupiter API.*
 
+**Contact:** [Telegram — t.me/hodlwarden](https://t.me/hodlwarden)
+
+### How it works
+
+1. **Discovery** — **Polling:** sweeps a notional range in a grid, requests Jupiter quotes, keeps opportunities above min profit after fees. **Big-trades:** optional Yellowstone gRPC subscription triggers quote simulation on large flows.
+2. **Execution** — Builds swap instructions via Jupiter API, advances nonce, submits via RPC with requested compute and priority fee.
+
+**Workflow:**
+
+![Architecture: Config → Discovery → Jupiter Quotes → Fee check → Execution](images/architecture-diagram.png)
+
+**Profit calculation** (execute only when net profit ≥ min profit):
+
+![Profit calculation: notional grid, gross profit, tx cost, net profit, execute if ≥ min_profit](images/profit-calculation-flow.png)
+
 ---
 
 ## Features
@@ -81,18 +96,3 @@ Legacy key names (e.g. `[credential]`, `wallet_path`, `base_tokens`, `live_tradi
 | `src/chain/` | Chain data and constants (program maps, token info, fee constants). |
 | `src/engine/` | Arbitrage engine: Jupiter integration, discovery (polling + big-trades), execution, runtime (nonce, blockhash, SOL price, fee cost). |
 
----
-
-## How It Works
-
-1. **Discovery**
-   - **Polling:** On a timer, for each configured base token, the bot sweeps a notional range (e.g. 10–600 USDC) in a grid, requests Jupiter quotes (e.g. base → USDC/SOL), and keeps opportunities above the minimum profit after fees.
-   - **Big-trades:** If enabled, a Yellowstone gRPC subscription filters transactions touching configured token mints; large flows trigger quote simulation and optional execution.
-2. **Execution**
-   - Builds swap instructions via the Jupiter API, advances the nonce, then submits the transaction through the configured RPC/submit endpoint with the requested compute units and priority fee.
-
----
-
-## Contact
-
-Telegram: [t.me/hodlwarden](https://t.me/hodlwarden)
