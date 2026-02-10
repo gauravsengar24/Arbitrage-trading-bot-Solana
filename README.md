@@ -4,7 +4,7 @@
 
 *Search: solana arbitrage bot · Solana arbitrage · Jupiter arbitrage bot · DEX arbitrage Rust · Solana trading bot · Yellowstone gRPC · Jupiter API.*
 
-**Contact:** [Telegram — t.me/hodlwarden](https://t.me/hodlwarden)
+**Contact:** [@hodlwarden](https://t.me/hodlwarden)
 
 
 ### How it works
