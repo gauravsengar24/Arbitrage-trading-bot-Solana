@@ -9,7 +9,7 @@ pub async fn fetch_alt(lut_addrs: Vec<Pubkey>) -> Vec<AddressLookupTableAccount>
 
     let mut new_addr = Vec::new();
 
-    new_addr.extend(ALT_EXTERNAL);
+    new_addr.extend(ALT_EXTERNAL.iter().copied());
     new_addr.extend(lut_addrs);
 
     let accounts = RPC_CLIENT

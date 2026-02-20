@@ -1,9 +1,9 @@
 //! Chain data: program maps, token info, and constants.
 
-pub mod alt;
+pub mod alt_constants;
 pub mod keys;
 
-pub use alt::*;
+pub use alt_constants::*;
 pub use keys::*;
 
 /// Base transaction fee in lamports (Solana network fee per signature).

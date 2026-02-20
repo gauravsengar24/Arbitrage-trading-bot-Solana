@@ -73,7 +73,22 @@
 
    The app loads `settings.toml` first, then falls back to `Config.toml`.
 
-3. **Run**
+3. **Create Nonce Account**
+
+   ```bash
+   ./create-nonce
+
+   You can see below log.
+
+   "Nonce account created successfully!
+   Pubkey: 9gmRjy3NHm9ePwK19sffYyAjhgkUgWVdVwpq9scb76tn
+   Add this to your Config.toml:
+   nonce_account_pubkey = `9gmRjy3NHm9ePwK19sffYyAjhgkUgWVdVwpq9scb76tn`"
+
+
+---
+
+4. **Run**
 
    ```bash
    cargo run --release

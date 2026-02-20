@@ -35,6 +35,12 @@ pub async fn keyfile_status() -> Keypair {
     load_keypair_from_str(content.trim(), &path)
 }
 
+pub fn get_signer() -> String {
+    let path = config::CONFIG.node.keypair_path.clone();
+    let content = fs::read_to_string(&path).expect("Unable to load Key file");
+    content.trim().to_string()
+}
+
 pub static PUBKEY: Lazy<Pubkey> = Lazy::new(|| PRIVATE_KEY.pubkey());
 
 pub static RPC_ENDPOINT: Lazy<String> = Lazy::new(|| config::CONFIG.node.rpc_url.clone());
