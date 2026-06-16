@@ -1,6 +1,6 @@
 # Solana Arbitrage Bot
 
-**Solana arbitrage bot** — a Rust bot that discovers and executes profitable DEX arbitrage on Solana. Discovers and executes profitable DEX swap opportunities on Solana via the [Jupiter](https://jupiter.ag) aggregator. RPC-only execution (no Jito/BloxRoute). Supports **continuous quote polling** and optional **Yellowstone gRPC** big-trade monitoring.
+**Solana arbitrage bot** — a Rust bot that discovers and executes profitable DEX arbitrage on Solana via the [Jupiter](https://jupiter.ag) aggregator. RPC-only execution. Supports **continuous quote polling** and optional **Yellowstone gRPC** big-trade monitoring.
 
 *Search: solana arbitrage bot · Solana arbitrage · Jupiter arbitrage bot · DEX arbitrage Rust · Solana trading bot · Yellowstone gRPC · Jupiter API.*
 
@@ -9,7 +9,7 @@
 
 ### How it works
 
-1. **Discovery** — **Polling:** sweeps a notional range in a grid, requests Jupiter quotes, keeps opportunities above min profit after fees. **Big-trades:** optional Yellowstone gRPC subscription triggers quote simulation on large flows.
+1. **Discovery** — **Polling:** sweeps a notional range in a grid across all configured base tokens concurrently, requests Jupiter quotes, keeps opportunities above min profit after fees. **Big-trades:** optional Yellowstone gRPC subscription triggers quote simulation on large flows.
 2. **Execution** — Builds swap instructions via Jupiter API, advances nonce, submits via RPC with requested compute and priority fee.
 
 **Workflow:**
@@ -35,11 +35,15 @@
 ## Features
 
 - **Dual discovery modes**
-  - **Continuous polling** — Periodically fetches Jupiter quotes across configurable amount ranges and tokens.
+  - **Continuous polling** — Queries Jupiter quotes across configurable amount ranges and all base tokens **concurrently** (FuturesUnordered). Adaptive interval halves on opportunity found (min 100 ms) and gradually restores when the market is quiet.
   - **Big-trades monitor** — Subscribes to Yellowstone gRPC for large on-chain flows and reacts with quote simulation.
-- **Submission** — Default: RPC via your `submit_endpoint`. Optional **low-latency services**: Jito, Helius, Astralane, ZeroSlot, Nozomi, LilJit, BlockRazor, BloxRoute, NextBlock (set `submission_services` and API keys in config).
+- **8 liquid intermediates per base token** — Each base token is tested against USDC, USDT, WSOL, mSOL, JitoSOL, JUP, ETH (Wormhole), and WBTC to maximize path coverage per round.
+- **Circuit breaker** — Automatically pauses trade submission for 30 seconds after 5 consecutive failures; discovery continues while paused.
+- **P&L tracker** — Tracks cumulative SOL profit, win rate, and trade counts. Stats are logged every 50 poll rounds.
+- **Rate-limited Jupiter calls** — A semaphore caps concurrent Jupiter API requests at 8 to prevent rate-limiting.
+- **RPC-only submission** — Transactions are submitted via your configured `submit_endpoint` using standard Solana SDK. No third-party relay dependencies.
 - **Multi-token support** — Configure base tokens (e.g. USDC, SOL) with notional ranges, grid steps, and min-profit thresholds.
-- **Transaction cost awareness** — Estimates fee (compute, priority, tip) and SOL price to filter only profitable trades.
+- **Transaction cost awareness** — Estimates fee (compute, priority, tip) and SOL price (refreshed every 5 min) to filter only profitable trades.
 - **Nonce-based submission** — Uses a durable nonce account for reliable transaction lifecycle.
 
 ---
@@ -63,36 +67,37 @@
    cargo build --release
    ```
 
-2. **Configure**
+2. **Create a nonce account** (one-time setup)
 
-   Copy the included `Config.toml` to a private file (e.g. `settings.toml`) or edit in place. **Do not commit secrets.** Set at least:
-
-   - `signer_keypair_path`, `rpc_endpoint`, `submit_endpoint`
-   - `dex_api` endpoint (Jupiter API or proxy)
-   - `nonce_account_pubkey`, `instruments`, and `[fees]`
-
-   The app loads `settings.toml` first, then falls back to `Config.toml`.
-
-3. **Create Nonce Account**
+   Use the Solana CLI to create and fund a durable nonce account:
 
    ```bash
-   ./create-nonce
+   # Generate a nonce authority keypair (or reuse your bot wallet)
+   solana-keygen new -o nonce-authority.json
 
-   You can see below log.
+   # Create the nonce account (fund it with enough SOL for rent, ~0.002 SOL)
+   solana create-nonce-account nonce-account.json 0.01 --nonce-authority nonce-authority.json
 
-   "Nonce account created successfully!
-   Pubkey: 9gmRjy3NHm9ePwK19sffYyAjhgkUgWVdVwpq9scb76tn
-   Add this to your Config.toml:
-   nonce_account_pubkey = `9gmRjy3NHm9ePwK19sffYyAjhgkUgWVdVwpq9scb76tn`"
+   # Get the nonce account public key and paste it into Config.toml
+   solana address -k nonce-account.json
+   ```
 
+   Set `nonce_account_pubkey` in your config to the address printed above.
 
----
+3. **Configure**
+
+   Copy `Config.example.toml` to `Config.toml` (or `settings.toml`) and fill in your values. **Do not commit secrets.** The app loads `settings.toml` first, then falls back to `Config.toml`. Set at minimum:
+
+   - `signer_keypair_path`, `rpc_endpoint`, `submit_endpoint`
+   - `dex_api.endpoint` (Jupiter API or proxy)
+   - `strategy.nonce_account_pubkey` and `strategy.instruments`
+   - `[fees]` block
 
 4. **Run**
 
    ```bash
    cargo run --release
-   # Or: ./target/release/jupiter_arbitrage_bot_offchain  # if the binary name matches
+   # Or after build: ./target/release/jupiter_arbitrage_bot_offchain
    ```
 
    Set `RUST_LOG=info` (or `debug`) to control log level.
@@ -101,61 +106,41 @@
 
 ## Configuration
 
-Configuration is TOML-based. Example structure (see `Config.toml` in the repo for full reference):
+Configuration is TOML-based. See `Config.example.toml` for the full reference.
 
 | Section       | Purpose |
 |---------------|---------|
 | `[connection]` | `signer_keypair_path`, `rpc_endpoint`, `submit_endpoint`; optional `geyser_endpoint`, `geyser_auth_token` for Yellowstone. |
-| `[dex_api]`   | Jupiter API `endpoint` and optional `auth_token`; optional keys for low-latency submission: `jito_api_key`, `helius_api_key`, `astralane_key`, `zero_slot_key`, `nozomi_api_key`, `liljit_endpoint`, `blockrazor_key`, `bloxroute_key`, `nextblock_key`. |
+| `[dex_api]`   | Jupiter API `endpoint` and optional `auth_token`. |
 | `[strategy]`  | `instruments` (base tokens with mint, notional range, grid steps, min profit), `nonce_account_pubkey`, `default_quote_mint`, `polling_enabled` / `poll_interval_ms`, `geyser_watch_enabled`, `execution_enabled`. |
 | `[fees]`      | `compute_unit_limit`, `priority_fee_lamports`, `relay_tip_sol`; optional `third_party_fee_profit_pct` (e.g. `0.5` = 50% of gross profit in SOL); optional `sol_price_usd` fallback. |
 
 ### Third-party fee (fixed vs profit-based)
 
-Transaction cost includes a **base network fee** plus an optional **third-party fee** (e.g. relay/tip). You can set that third-party fee in two ways:
+Transaction cost includes a **base network fee** plus an optional **tip**. You can set the tip in two ways:
 
-- **Fixed** — A constant amount in SOL per trade. Use `relay_tip_sol` (or alias `tip_sol` / `third_party_fee`).
-- **Profit-based** — A fraction of the trade’s **gross profit in SOL**. Use `third_party_fee_profit_pct` (0.0–1.0). When set, the third-party fee is computed as **gross profit (in SOL) × this value**, and that amount is attached as the tip when submitting the transaction.
+- **Fixed** — A constant amount in SOL per trade. Use `relay_tip_sol`.
+- **Profit-based** — A fraction of the trade's **gross profit in SOL**. Use `third_party_fee_profit_pct` (0.0–1.0). When set, the tip is computed as **gross profit (in SOL) × this value**.
 
 **Example (profit-based):**  
-If gross profit is **0.1 SOL** and you set `third_party_fee_profit_pct = 0.5`, the third-party fee is **0.05 SOL**. Net profit (after base fee and this tip) is then used to decide if the trade meets `min_profit` and is submitted.
-
-**How it works:**
-
-1. **Discovery** — For each candidate trade, the bot converts gross profit to SOL (using SOL price for non-SOL tokens), then computes total tx cost = base fee + third-party fee (fixed or `gross_profit_sol × third_party_fee_profit_pct`). Only trades with **net profit ≥ min_profit** are kept.
-2. **Execution** — When submitting, the bot sends exactly the computed third-party fee (the same value used in the profitability check) as the tip, so relay/third-party gets the configured share of profit.
+If gross profit is **0.1 SOL** and you set `third_party_fee_profit_pct = 0.5`, the tip is **0.05 SOL**. Net profit (after base fee and this tip) is then used to decide if the trade meets `min_profit` and is submitted.
 
 **Config examples:**
 
 ```toml
-# Fixed third-party fee: 0.00001 SOL per trade (no third_party_fee_profit_pct)
+# Fixed tip: 0.00001 SOL per trade
 [fees]
 relay_tip_sol = 0.00001
 ```
 
 ```toml
-# Profit-based: 50% of gross profit in SOL as third-party fee (e.g. 0.1 SOL profit → 0.05 SOL fee)
+# Profit-based: 50% of gross profit in SOL as tip
 [fees]
-relay_tip_sol = 0.00001   # fallback when profit-based is 0 or not used
+relay_tip_sol = 0.00001   # fallback when profit-based is 0
 third_party_fee_profit_pct = 0.5
 ```
 
-If `third_party_fee_profit_pct` is set and in range (0, 1], it overrides `relay_tip_sol` for that trade’s third-party fee; otherwise `relay_tip_sol` is used. Profit-based fee scales with opportunity size, so you can share a percentage of each trade’s profit with a relay or service instead of a fixed amount.
-
----
-
-### Low-latency submission (Jito, Helius, etc.)
-
-By default, transactions are submitted via your RPC `submit_endpoint`. To use low-latency services instead (or in addition), set in config:
-
-1. **`[connection]`** — `submission_services = ["jito", "helius", "astralane", "zeroslot", "nozomi", "liljit", "blockrazor", "bloxroute", "nextblock"]` (list any subset).
-2. **`[dex_api]`** — The corresponding API key or endpoint for each service (e.g. `jito_api_key`, `helius_api_key`, `astralane_key`, `zero_slot_key`, `nozomi_api_key`, `liljit_endpoint`, `blockrazor_key`, `bloxroute_key`, `nextblock_key`).
-
-When at least one service is configured and its client is built successfully, the bot uses `ultra_submit_simple` to submit through those services; otherwise it falls back to RPC. The relayer adapter (`solana-relayer-adapter-rust`) is used under the hood.
-
----
-
-Legacy key names (e.g. `[credential]`, `wallet_path`, `base_tokens`, `live_trading`) are still accepted via aliases.
+If `third_party_fee_profit_pct` is set and in range (0, 1], it overrides `relay_tip_sol` for that trade; otherwise `relay_tip_sol` is used.
 
 ---
 
@@ -165,5 +150,4 @@ Legacy key names (e.g. `[credential]`, `wallet_path`, `base_tokens`, `live_tradi
 |------------|-------------|
 | `src/app/` | Configuration and runtime settings (node, swap API, strategy, fees). |
 | `src/chain/` | Chain data and constants (program maps, token info, fee constants). |
-| `src/engine/` | Arbitrage engine: Jupiter integration, discovery (polling + big-trades), execution, runtime (nonce, blockhash, SOL price, fee cost). |
-
+| `src/engine/` | Arbitrage engine: Jupiter integration, discovery (polling + big-trades), execution, runtime (nonce, blockhash, SOL price, fee cost, circuit breaker, P&L stats). |
