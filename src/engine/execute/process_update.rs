@@ -1,8 +1,7 @@
 use chrono::Utc;
 use futures::{Stream, future::join_all};
 // Temporarily disabled: use helius_laserstream::SubscribeUpdate;
-use solana_relayer_adapter_rust::Tips;
-use crate::submit_with_services;
+use crate::{Tips, submit_with_services, STATS};
 use solana_sdk::{
     system_instruction::advance_nonce_account,
     transaction::Transaction,
@@ -143,8 +142,14 @@ pub async fn process_single_trade_yellowstone(sub_update: yellowstone_grpc_proto
     if !CONFIG.strategy.live_trading {
         return;
     }
-    
+
     if quote_data.is_empty() {
+        return;
+    }
+
+    // Circuit breaker: skip submission when too many consecutive failures.
+    if STATS.is_circuit_open() {
+        tracing::warn!("Circuit breaker open — skipping big-trade submission");
         return;
     }
 
@@ -182,6 +187,13 @@ pub async fn process_single_trade_yellowstone(sub_update: yellowstone_grpc_proto
     let gross_profit = out_amount as i64 - in_amount as i64;
     let net_profit = gross_profit - total_tx_cost;
     let pow_dec = 10_f64.powf(mother_token.1 as f64);
+
+    // Convert net profit to lamports for the P&L tracker.
+    let net_profit_lamports: i64 = if token_is_sol {
+        net_profit
+    } else {
+        ((net_profit as f64 / pow_dec) / sol_price * 1_000_000_000.0) as i64
+    };
     let total_tx_cost_usdc =
         (total_tx_cost as f64 / pow_dec) * if token_is_sol { sol_price } else { 1.0 };
     
@@ -288,7 +300,8 @@ pub async fn process_single_trade_yellowstone(sub_update: yellowstone_grpc_proto
                     "RPC"
                 };
 
-                submit_with_services(
+                STATS.record_attempt();
+                let accepted = submit_with_services(
                     Tips {
                         tip_sol_amount,
                         tip_addr_idx: 0,
@@ -304,6 +317,11 @@ pub async fn process_single_trade_yellowstone(sub_update: yellowstone_grpc_proto
                     1,
                 )
                 .await;
+                if accepted {
+                    STATS.record_success(net_profit_lamports);
+                } else {
+                    STATS.record_failure();
+                }
                 
                 let timestamp = Utc::now().format("%Y-%m-%d %H:%M:%S%.3f");
                 let submit_msg = format!(

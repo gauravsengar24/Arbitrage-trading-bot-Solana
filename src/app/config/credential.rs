@@ -8,8 +8,6 @@ pub struct NodeConfig {
     pub rpc_url: String,
     #[serde(rename = "submit_endpoint", alias = "submit_url")]
     pub submit_url: String,
-    #[serde(default)]
-    pub laser_token: String,
     #[serde(rename = "geyser_endpoint", alias = "geyser_url", alias = "yellowstone_grpc_endpoint", default)]
     pub geyser_url: Option<String>,
     #[serde(rename = "geyser_auth_token", alias = "geyser_token", alias = "yellowstone_grpc_token", default)]

@@ -97,52 +97,34 @@ pub async fn get_sol_price_usdc(fallback_price: f64) -> f64 {
     price_guard.unwrap_or(fallback_price)
 }
 
-/// Background task to fetch SOL price every 1 hour
+/// Background task to fetch SOL price every 5 minutes.
 pub async fn start_sol_price_fetcher(fallback_price: f64) {
-    println!("[SOL Price] Starting price fetcher (updates every 1 hour)");
+    tracing::info!("Starting SOL price fetcher (updates every 5 min)");
     
     // Fetch immediately on startup
     match fetch_sol_price_from_coingecko().await {
         Ok(price) => {
             update_sol_price(price).await;
-            println!(
-                "[{}] [SOL Price] ✅ Fetched SOL price: ${:.2} USDC",
-                Utc::now().format("%Y-%m-%d %H:%M:%S"),
-                price
-            );
+            tracing::info!(price_usd = price, "SOL price fetched");
         }
         Err(e) => {
-            eprintln!(
-                "[{}] [SOL Price] ⚠️ Failed to fetch SOL price: {}. Using fallback: ${:.2}",
-                Utc::now().format("%Y-%m-%d %H:%M:%S"),
-                e,
-                fallback_price
-            );
+            tracing::warn!(error = %e, fallback = fallback_price, "SOL price fetch failed — using fallback");
         }
     }
-    
-    // Then fetch every 1 hour
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(3600)); // 1 hour = 3600 seconds
-    
+
+    // Refresh every 5 minutes so fee calculations stay accurate during volatile sessions.
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300));
+
     loop {
         interval.tick().await;
-        
+
         match fetch_sol_price_from_coingecko().await {
             Ok(price) => {
                 update_sol_price(price).await;
-                println!(
-                    "[{}] [SOL Price] ✅ Updated SOL price: ${:.2} USDC",
-                    Utc::now().format("%Y-%m-%d %H:%M:%S"),
-                    price
-                );
+                tracing::info!(price_usd = price, "SOL price updated");
             }
             Err(e) => {
-                eprintln!(
-                    "[{}] [SOL Price] ⚠️ Failed to fetch SOL price: {}. Keeping previous value or using fallback: ${:.2}",
-                    Utc::now().format("%Y-%m-%d %H:%M:%S"),
-                    e,
-                    fallback_price
-                );
+                tracing::warn!(error = %e, "SOL price refresh failed — keeping previous value");
             }
         }
     }
