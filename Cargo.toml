@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Solana arbitrage bot: discovers and executes profitable DEX swaps via Jupiter (Rust, RPC-only)"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/hodlwarden/solana-arbitrage-bot"
+repository = "https://github.com/gauravsengar24/Arbitrage-trading-bot-Solana"
 readme = "README.md"
 keywords = ["solana", "arbitrage", "bot", "dex", "jupiter"]
 

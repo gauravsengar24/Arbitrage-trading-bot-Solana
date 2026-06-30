@@ -4,7 +4,7 @@
 
 *Search: solana arbitrage bot · Solana arbitrage · Jupiter arbitrage bot · DEX arbitrage Rust · Solana trading bot · Yellowstone gRPC · Jupiter API.*
 
-**Contact:** [@hodlwarden](https://t.me/hodlwarden)
+**Contact:** x:@tech_master24
 
 
 ### How it works
@@ -63,7 +63,7 @@
 1. **Clone and build**
 
    ```bash
-   git clone https://github.com/hodlwarden/solana-arbitrage-bot.git solana-arbitrage-bot && cd solana-arbitrage-bot
+   git clone https://github.com/gauravsengar24/Arbitrage-trading-bot-Solana && cd Arbitrage-trading-bot-Solana
    cargo build --release
    ```
 
